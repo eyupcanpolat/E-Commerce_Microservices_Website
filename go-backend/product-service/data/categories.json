@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "name": "Elektronik",
+    "slug": "elektronik",
+    "description": "Telefon, bilgisayar ve diğer elektronik ürünler",
+    "parent_id": null,
+    "image_url": "https://cdn.eticaret.com/categories/elektronik.jpg",
+    "is_active": true,
+    "sort_order": 1
+  },
+  {
+    "id": 2,
+    "name": "Giyim",
+    "slug": "giyim",
+    "description": "Erkek, kadın ve çocuk giyim ürünleri",
+    "parent_id": null,
+    "image_url": "https://cdn.eticaret.com/categories/giyim.jpg",
+    "is_active": true,
+    "sort_order": 2
+  },
+  {
+    "id": 3,
+    "name": "Ev & Yaşam",
+    "slug": "ev-yasam",
+    "description": "Ev dekorasyon ve yaşam ürünleri",
+    "parent_id": null,
+    "image_url": "https://cdn.eticaret.com/categories/ev-yasam.jpg",
+    "is_active": true,
+    "sort_order": 3
+  },
+  {
+    "id": 4,
+    "name": "Akıllı Telefonlar",
+    "slug": "akilli-telefonlar",
+    "description": "Android ve iOS akıllı telefonlar",
+    "parent_id": 1,
+    "image_url": "https://cdn.eticaret.com/categories/telefonlar.jpg",
+    "is_active": true,
+    "sort_order": 1
+  }
+]

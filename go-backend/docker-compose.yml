@@ -1,0 +1,226 @@
+# docker-compose.yml — E-Ticaret Go Microservices Stack
+#
+# NETWORK ISOLATION:
+#   - Only api-gateway exposes a port to the host (8080)
+#   - All microservices are on the internal 'eticaret-internal' network ONLY
+#   - Microservices are NOT reachable from the host or internet
+#   - They communicate only via the Docker internal network
+#   - Requirements:
+#     1. API Gateway validates JWT centrally
+#     2. Gateway injects X-Internal-Secret to every forwarded request
+#     3. Microservices reject requests without X-Internal-Secret
+#
+# To verify isolation:
+#   curl http://localhost:8081/health  → Connection refused (not exposed)
+#   curl http://localhost:8082/health  → Connection refused (not exposed)
+#   curl http://localhost:8080/health  → 200 OK (gateway only)
+
+version: "3.9"
+
+services:
+  # ─── MongoDB — Shared database for all microservices ─────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: eticaret-mongodb
+    ports:
+      - "27017:27017"   # exposed for dev/tooling access
+    environment:
+      MONGO_INITDB_DATABASE: eticaret
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - eticaret-internal
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # ─── API Gateway — THE ONLY EXTERNALLY EXPOSED SERVICE ───────────────────
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: eticaret-gateway
+    ports:
+      - "8080:8080"    # ← ONLY this service exposes a port to the outside world
+    environment:
+      GATEWAY_PORT: "8080"
+      JWT_SECRET: "${JWT_SECRET:-eticaret-super-secret-key-change-in-production}"
+      INTERNAL_SECRET: "${INTERNAL_SECRET:-internal-gateway-secret-change-in-prod}"
+      AUTH_SERVICE_URL: "http://auth-service:8081"
+      PRODUCT_SERVICE_URL: "http://product-service:8082"
+      ADDRESS_SERVICE_URL: "http://address-service:8083"
+      ORDER_SERVICE_URL: "http://order-service:8084"
+      CDN_SERVICE_URL: "http://cdn-service:8085"
+      RATE_LIMIT_PER_MINUTE: "${RATE_LIMIT_PER_MINUTE:-60}"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+      address-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      cdn-service:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - eticaret-internal   # Internal only — can reach all microservices
+    restart: unless-stopped
+
+  # ─── Auth Service — INTERNAL ONLY (no ports exposed) ─────────────────────
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    container_name: eticaret-auth
+    # NO 'ports' section — not accessible from host or internet
+    expose:
+      - "8081"   # Only reachable within eticaret-internal Docker network
+    environment:
+      AUTH_SERVICE_PORT: "8081"
+      JWT_SECRET: "${JWT_SECRET:-eticaret-super-secret-key-change-in-production}"
+      INTERNAL_SECRET: "${INTERNAL_SECRET:-internal-gateway-secret-change-in-prod}"
+      MONGODB_URI: "mongodb://mongodb:27017"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - eticaret-internal   # Internal network only
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--header=X-Internal-Secret: ${INTERNAL_SECRET:-internal-gateway-secret-change-in-prod}", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # ─── Product Service — INTERNAL ONLY ────────────────────────────────────────
+  product-service:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+    container_name: eticaret-product
+    # NO 'ports' section
+    expose:
+      - "8082"
+    environment:
+      PRODUCT_SERVICE_PORT: "8082"
+      JWT_SECRET: "${JWT_SECRET:-eticaret-super-secret-key-change-in-production}"
+      INTERNAL_SECRET: "${INTERNAL_SECRET:-internal-gateway-secret-change-in-prod}"
+      MONGODB_URI: "mongodb://mongodb:27017"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - eticaret-internal
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--header=X-Internal-Secret: ${INTERNAL_SECRET:-internal-gateway-secret-change-in-prod}", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # ─── Address Service — INTERNAL ONLY ─────────────────────────────────────
+  address-service:
+    build:
+      context: .
+      dockerfile: address-service/Dockerfile
+    container_name: eticaret-address
+    # NO 'ports' section
+    expose:
+      - "8083"
+    environment:
+      ADDRESS_SERVICE_PORT: "8083"
+      JWT_SECRET: "${JWT_SECRET:-eticaret-super-secret-key-change-in-production}"
+      INTERNAL_SECRET: "${INTERNAL_SECRET:-internal-gateway-secret-change-in-prod}"
+      MONGODB_URI: "mongodb://mongodb:27017"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - eticaret-internal
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--header=X-Internal-Secret: ${INTERNAL_SECRET:-internal-gateway-secret-change-in-prod}", "http://localhost:8083/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # ─── Order Service — INTERNAL ONLY ───────────────────────────────────────
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    container_name: eticaret-order
+    # NO 'ports' section
+    expose:
+      - "8084"
+    environment:
+      ORDER_SERVICE_PORT: "8084"
+      JWT_SECRET: "${JWT_SECRET:-eticaret-super-secret-key-change-in-production}"
+      INTERNAL_SECRET: "${INTERNAL_SECRET:-internal-gateway-secret-change-in-prod}"
+      PRODUCT_SERVICE_URL: "http://product-service:8082"
+      MONGODB_URI: "mongodb://mongodb:27017"
+    depends_on:
+      product-service:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - eticaret-internal
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--header=X-Internal-Secret: ${INTERNAL_SECRET:-internal-gateway-secret-change-in-prod}", "http://localhost:8084/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # ─── CDN Service — PUBLICLY EXPOSED (static assets) ─────────────────────
+  # CDN servisi ürün görsellerini sunar.
+  # Görseller host'tan bind mount ile container içine alınır.
+  cdn-service:
+    build:
+      context: .
+      dockerfile: cdn-service/Dockerfile
+    container_name: eticaret-cdn
+    ports:
+      - "8085:8085"    # Görsel servisi tarayıcıdan doğrudan erişilebilir
+    expose:
+      - "8085"
+    environment:
+      CDN_SERVICE_PORT: "8085"
+      STATIC_DIR: "/app/static"
+    volumes:
+      - ./cdn-service/static:/app/static    # Bind mount: host dosyaları container'a
+    networks:
+      - eticaret-internal
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--header=X-Internal-Secret: ${INTERNAL_SECRET:-internal-gateway-secret-change-in-prod}", "http://localhost:8085/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+# ─── Named Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  mongo-data:   # MongoDB persistent storage
+  # cdn-data kaldırıldı — CDN artık bind mount kullanıyor (cdn-service/static/)
+
+# ─── Networks ────────────────────────────────────────────────────────────────
+networks:
+  eticaret-internal:
+    driver: bridge
+    # This network is internal to Docker — services on this network
+    # can communicate with each other by container name.
+    # The host machine CANNOT reach services on this network
+    # unless they explicitly expose ports (only api-gateway does).
