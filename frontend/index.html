@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Go Mikroservis mimarisi ile güçlendirilmiş modern e-ticaret platformu.">
+  <meta name="theme-color" content="#0d0f14">
+  <title>eticaret — Go Mikroservis Mağazası</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous">
+
+  <!-- App Stylesheet -->
+  <link rel="stylesheet" href="css/style.css?v=3">
+</head>
+<body>
+
+  <!-- ========================================================
+       HEADER
+  ========================================================= -->
+  <header class="header">
+    <div class="container header-inner">
+
+      <!-- Logo -->
+      <a href="#" class="logo" id="nav-home">
+        <div class="logo-icon"><i class="fas fa-bolt"></i></div>
+        <span class="logo-text">eticaret</span>
+      </a>
+
+
+      <!-- Nav Actions -->
+      <nav class="nav-actions" aria-label="Kullanıcı menüsü">
+
+        <!-- Always visible top-right nav items -->
+        <div class="nav-group" id="nav-persistent">
+          <button class="btn-nav" onclick="App.navigate('cart')" id="btn-cart">
+            <i class="fas fa-shopping-cart"></i>
+            <span>Sepetim</span>
+            <span id="cart-badge" style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;font-weight:700;margin-left:2px;display:none">0</span>
+          </button>
+          
+          <button class="btn-nav" onclick="App.navigate('profile')" id="btn-profile">
+            <i class="fas fa-user"></i>
+            <span>Profilim</span>
+          </button>
+        </div>
+
+        <!-- Guest nav (shown when NOT logged in) -->
+        <div class="nav-group" id="nav-guest">
+          <button class="btn-nav" id="btn-login">
+            <i class="fas fa-sign-in-alt"></i>
+            <span>Giriş Yap</span>
+          </button>
+        </div>
+
+        <!-- User nav (shown when logged in) -->
+        <div class="nav-group hidden" id="nav-user">
+          <!-- Admin Menüsü -->
+          <button class="btn-nav" id="btn-admin-products" style="display:none; color:var(--accent)">
+            <i class="fas fa-cogs"></i>
+            <span>Ürün Yönetimi</span>
+          </button>
+          <!-- Çıkış Yap -->
+          <button class="btn-nav" id="btn-logout" style="color:var(--danger)">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Çıkış Yap</span>
+          </button>
+        </div>
+
+        <!-- Mobile hamburger (small screens) -->
+        <button class="mobile-toggle" id="mobile-menu-toggle" aria-label="Menüyü aç">
+          <i class="fas fa-bars"></i>
+        </button>
+      </nav>
+
+    </div>
+  </header>
+
+  <!-- ========================================================
+       MAIN CONTENT — Pages rendered here by app.js router
+  ========================================================= -->
+  <main class="main-content">
+    <div id="app-root">
+      <!-- Loading state -->
+      <div class="container">
+        <div class="page-loading">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ========================================================
+       MODAL (shared — address form, product detail, etc.)
+  ========================================================= -->
+  <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal" id="modal-window">
+      <button class="modal-close" id="modal-close" aria-label="Kapat">
+        <i class="fas fa-times"></i>
+      </button>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       TOAST NOTIFICATIONS
+  ========================================================= -->
+  <div id="toast-container" role="region" aria-live="polite" aria-label="Bildirimler"></div>
+
+  <!-- ========================================================
+       FOOTER
+  ========================================================= -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-logo">
+            <i class="fas fa-bolt"></i> eticaret
+          </div>
+          <p>Go mikroservis mimarisi ile güçlendirilmiş güvenli alışveriş platformu.</p>
+          <div class="social-links">
+            <a href="#" aria-label="GitHub"><i class="fab fa-github"></i></a>
+            <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+            <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
+          </div>
+        </div>
+        <div class="footer-col">
+          <h4>Keşfet</h4>
+          <ul>
+            <li><a id="footer-home">Ürünler</a></li>
+            <li><a id="footer-orders">Siparişlerim</a></li>
+            <li><a id="footer-addresses">Adreslerim</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Servisler</h4>
+          <ul>
+            <li><i class="fas fa-circle" style="color:var(--success);font-size:8px"></i> API Gateway :8080</li>
+            <li><i class="fas fa-circle" style="color:var(--success);font-size:8px"></i> Auth Service :8081</li>
+            <li><i class="fas fa-circle" style="color:var(--success);font-size:8px"></i> Product Service :8082</li>
+            <li><i class="fas fa-circle" style="color:var(--success);font-size:8px"></i> Address Service :8083</li>
+            <li><i class="fas fa-circle" style="color:var(--success);font-size:8px"></i> Order Service :8084</li>
+            <li><i class="fas fa-circle" style="color:var(--success);font-size:8px"></i> CDN Service :8085</li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Teknolojiler</h4>
+          <ul>
+            <li><i class="fab fa-golang" style="color:var(--accent)"></i> Go 1.22</li>
+            <li><i class="fas fa-shield-alt" style="color:var(--accent)"></i> JWT Auth</li>
+            <li><i class="fab fa-docker" style="color:var(--accent)"></i> Docker</li>
+            <li><i class="fas fa-network-wired" style="color:var(--accent)"></i> Mikroservisler</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2024 eticaret. Go Mikroservis Mimarisi ile geliştirildi.</span>
+        <div class="footer-tech">
+          <i class="fas fa-lock" style="color:var(--success)"></i>
+          <span>Network Isolated · JWT Secured · Rate Limited</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========================================================
+       SCRIPTS
+       Yükleme sırası önemli:
+       1. api.js     → Auth, Cart sınıfları + API helpers
+       2. pages/*    → Sayfa render fonksiyonları
+       3. app.js     → Router (DOMContentLoaded'da başlatır)
+  ========================================================= -->
+  <!-- Core API layer -->
+  <script src="js/api.js"></script>
+
+  <!-- Page render functions -->
+  <script src="js/pages/home.js?v=2"></script>
+  <script src="js/pages/auth.js?v=2"></script>
+  <script src="js/pages/orders.js"></script>
+  <script src="js/pages/addresses.js"></script>
+  <script src="js/pages/product.js"></script>
+  <script src="js/pages/profile.js"></script>
+  <script src="js/pages/admin-products.js"></script>
+
+  <!-- App router (must be last) -->
+  <script src="js/app.js?v=2"></script>
+
+</body>
+</html>
