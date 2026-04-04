@@ -47,7 +47,6 @@ func main() {
 	db := client.Database("eticaret")
 
 	seedCollection(ctx, db, "products", "product-service/data/products.json")
-	seedCollection(ctx, db, "categories", "product-service/data/categories.json")
 	seedCollection(ctx, db, "users", "auth-service/data/users.json")
 	seedCollection(ctx, db, "addresses", "address-service/data/addresses.json")
 	seedCollection(ctx, db, "orders", "order-service/data/orders.json")
@@ -103,7 +102,7 @@ func seedCollection(ctx context.Context, db *mongo.Database, collName, filePath 
 
 func syncCounters(ctx context.Context, db *mongo.Database) {
 	counters := db.Collection("counters")
-	collections := []string{"users", "products", "categories", "addresses", "orders"}
+	collections := []string{"users", "products", "addresses", "orders"}
 
 	for _, name := range collections {
 		coll := db.Collection(name)
