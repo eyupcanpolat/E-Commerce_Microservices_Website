@@ -12,11 +12,29 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	sharedJWT "eticaret/shared/jwt"
 	"eticaret/shared/logger"
 	"eticaret/shared/response"
 )
+
+// RequestLogger arayüzü — store bağımlılığını tersine çevirir (DIP).
+// store paketi yerine bu arayüzü kullanırız, döngüsel import olmaz.
+type RequestStorer interface {
+	LogRequest(log RequestLog)
+}
+
+// RequestLog middleware için minimal log yapısı.
+type RequestLog struct {
+	Method     string
+	Path       string
+	StatusCode int
+	DurationMs int64
+	IP         string
+	UserID     string
+	UserRole   string
+}
 
 // getInternalSecret reads the shared internal secret from environment.
 // Gateway injects this on every forwarded request.
@@ -42,6 +60,46 @@ func RequestLogger(next http.Handler) http.Handler {
 		)
 		next.ServeHTTP(w, r)
 	})
+}
+
+// responseWriter wraps http.ResponseWriter to capture the status code.
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+// RequestLoggerWithStore logs every request and persists it via the storer.
+// Use this instead of RequestLogger when you want DB-backed access logs.
+func RequestLoggerWithStore(storer RequestStorer) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+
+			logger.Info("→ Gateway request",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"remote", r.RemoteAddr,
+			)
+
+			next.ServeHTTP(rw, r)
+
+			storer.LogRequest(RequestLog{
+				Method:     r.Method,
+				Path:       r.URL.Path,
+				StatusCode: rw.statusCode,
+				DurationMs: time.Since(start).Milliseconds(),
+				IP:         r.RemoteAddr,
+				UserID:     r.Header.Get("X-User-ID"),
+				UserRole:   r.Header.Get("X-User-Role"),
+			})
+		})
+	}
 }
 
 // InjectInternalSecret adds the X-Internal-Secret header to every request

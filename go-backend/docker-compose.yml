@@ -55,6 +55,7 @@ services:
       ADDRESS_SERVICE_URL: "http://address-service:8083"
       ORDER_SERVICE_URL: "http://order-service:8084"
       CDN_SERVICE_URL: "http://cdn-service:8085"
+      MONGODB_URI: "mongodb://mongodb:27017"
       RATE_LIMIT_PER_MINUTE: "${RATE_LIMIT_PER_MINUTE:-60}"
     depends_on:
       auth-service:

@@ -103,7 +103,7 @@ func main() {
 	h := gwMiddleware.Chain(
 		mux,
 		gwMiddleware.CORS,
-		gwMiddleware.RequestLogger,
+		gwMiddleware.RequestLoggerWithStore(&gatewayStoreAdapter{s: gatewayStore}),
 		limiter.Middleware,
 	)
 
@@ -159,4 +159,22 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// gatewayStoreAdapter adapts *store.GatewayStore to gwMiddleware.RequestStorer.
+// Avoids circular import between middleware ↔ store packages.
+type gatewayStoreAdapter struct {
+	s *store.GatewayStore
+}
+
+func (a *gatewayStoreAdapter) LogRequest(log gwMiddleware.RequestLog) {
+	a.s.LogRequest(store.RequestLog{
+		Method:     log.Method,
+		Path:       log.Path,
+		StatusCode: log.StatusCode,
+		DurationMs: log.DurationMs,
+		IP:         log.IP,
+		UserID:     log.UserID,
+		UserRole:   log.UserRole,
+	})
 }
