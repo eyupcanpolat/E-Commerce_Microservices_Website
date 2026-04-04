@@ -16,6 +16,7 @@ import (
 	"eticaret/auth-service/internal/repository"
 	"eticaret/auth-service/internal/service"
 	"eticaret/shared/logger"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -40,6 +41,9 @@ func main() {
 	authHandler := handler.NewAuthHandler(authSvc)
 
 	mux := http.NewServeMux()
+
+	// Prometheus metrics — açık endpoint (Prometheus Docker ağından erişir)
+	mux.Handle("GET /metrics", promhttp.Handler())
 
 	// ALL routes are wrapped with NetworkIsolation — only gateway can call us
 	mux.Handle("GET /health", middleware.NetworkIsolation(http.HandlerFunc(authHandler.Health)))

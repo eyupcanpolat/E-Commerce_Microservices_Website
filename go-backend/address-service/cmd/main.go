@@ -13,6 +13,7 @@ import (
 	"eticaret/address-service/internal/repository"
 	"eticaret/address-service/internal/service"
 	"eticaret/shared/logger"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -37,6 +38,9 @@ func main() {
 	addrHandler := handler.NewAddressHandler(addrSvc)
 
 	mux := http.NewServeMux()
+
+	// Prometheus metrics — açık endpoint
+	mux.Handle("GET /metrics", promhttp.Handler())
 
 	mux.Handle("GET /health", middleware.NetworkIsolation(http.HandlerFunc(addrHandler.Health)))
 

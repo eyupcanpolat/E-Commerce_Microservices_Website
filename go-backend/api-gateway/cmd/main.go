@@ -32,6 +32,7 @@ import (
 	"eticaret/api-gateway/internal/ratelimit"
 	"eticaret/api-gateway/internal/store"
 	"eticaret/shared/logger"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -53,6 +54,9 @@ func main() {
 	gatewayStore := store.NewGatewayStore()
 
 	mux := http.NewServeMux()
+
+	// ── Prometheus metrics ───────────────────────────────────────────────────
+	mux.Handle("GET /metrics", promhttp.Handler())
 
 	// ── Gateway health endpoint ──────────────────────────────────────────────
 	mux.HandleFunc("GET /health", handler.HealthHandler(serviceURLs))

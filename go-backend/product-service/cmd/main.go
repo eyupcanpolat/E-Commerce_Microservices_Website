@@ -14,6 +14,7 @@ import (
 	"eticaret/product-service/internal/repository"
 	"eticaret/product-service/internal/service"
 	"eticaret/shared/logger"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -38,6 +39,9 @@ func main() {
 	productHandler := handler.NewProductHandler(productSvc)
 
 	mux := http.NewServeMux()
+
+	// Prometheus metrics — açık endpoint
+	mux.Handle("GET /metrics", promhttp.Handler())
 
 	// ALL routes require X-Internal-Secret (NetworkIsolation)
 	mux.Handle("GET /health", middleware.NetworkIsolation(http.HandlerFunc(productHandler.Health)))
