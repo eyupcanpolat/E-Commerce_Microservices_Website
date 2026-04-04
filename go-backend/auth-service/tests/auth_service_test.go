@@ -8,10 +8,11 @@ import (
 
 	"eticaret/auth-service/internal/model"
 	"eticaret/auth-service/internal/service"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
-// --- Mock Repository ---
-// We implement the UserRepository interface with in-memory data for tests.
+// ── Mock Repository ───────────────────────────────────────────────────────────
 
 type mockUserRepository struct {
 	users  []model.User
@@ -54,10 +55,24 @@ func (m *mockUserRepository) Create(user *model.User) (*model.User, error) {
 }
 
 func (m *mockUserRepository) Update(id int, data map[string]interface{}) (*model.User, error) {
-	return nil, nil
+	for i := range m.users {
+		if m.users[i].ID == id {
+			if v, ok := data["first_name"]; ok {
+				m.users[i].FirstName = v.(string)
+			}
+			if v, ok := data["last_name"]; ok {
+				m.users[i].LastName = v.(string)
+			}
+			if v, ok := data["password"]; ok {
+				m.users[i].Password = v.(string)
+			}
+			return &m.users[i], nil
+		}
+	}
+	return nil, errors.New("not found")
 }
 
-// --- Tests ---
+// ── Register testleri ─────────────────────────────────────────────────────────
 
 func TestRegister_Success(t *testing.T) {
 	svc := service.NewAuthService(newMockRepo())
@@ -72,16 +87,16 @@ func TestRegister_Success(t *testing.T) {
 
 	result, err := svc.Register(req)
 	if err != nil {
-		t.Fatalf("expected no error, got: %v", err)
+		t.Fatalf("beklenen hata yok, alınan: %v", err)
 	}
 	if result.Token == "" {
-		t.Error("expected non-empty JWT token")
+		t.Error("JWT token boş olmamalı")
 	}
 	if result.User.Email != "test@example.com" {
-		t.Errorf("expected email test@example.com, got %s", result.User.Email)
+		t.Errorf("beklenen email test@example.com, alınan %s", result.User.Email)
 	}
 	if result.User.Role != "customer" {
-		t.Errorf("expected role customer, got %s", result.User.Role)
+		t.Errorf("beklenen rol customer, alınan %s", result.User.Role)
 	}
 }
 
@@ -97,11 +112,8 @@ func TestRegister_PasswordMismatch(t *testing.T) {
 	}
 
 	_, err := svc.Register(req)
-	if err == nil {
-		t.Fatal("expected error for password mismatch, got nil")
-	}
 	if err != service.ErrPasswordMismatch {
-		t.Errorf("expected ErrPasswordMismatch, got: %v", err)
+		t.Errorf("beklenen ErrPasswordMismatch, alınan: %v", err)
 	}
 }
 
@@ -129,7 +141,7 @@ func TestRegister_InvalidEmail(t *testing.T) {
 			}
 			_, err := svc.Register(req)
 			if err != service.ErrInvalidEmail {
-				t.Errorf("email %q: expected ErrInvalidEmail, got %v", tt.email, err)
+				t.Errorf("email %q: beklenen ErrInvalidEmail, alınan %v", tt.email, err)
 			}
 		})
 	}
@@ -148,7 +160,7 @@ func TestRegister_PasswordTooShort(t *testing.T) {
 
 	_, err := svc.Register(req)
 	if err != service.ErrPasswordTooShort {
-		t.Errorf("expected ErrPasswordTooShort, got %v", err)
+		t.Errorf("beklenen ErrPasswordTooShort, alınan %v", err)
 	}
 }
 
@@ -164,30 +176,14 @@ func TestRegister_EmailAlreadyExists(t *testing.T) {
 		LastName:        "User",
 	}
 
-	// First registration should succeed
 	_, err := svc.Register(req)
 	if err != nil {
-		t.Fatalf("first register failed: %v", err)
+		t.Fatalf("ilk kayıt başarısız: %v", err)
 	}
 
-	// Second registration with same email should fail
 	_, err = svc.Register(req)
 	if err != service.ErrEmailExists {
-		t.Errorf("expected ErrEmailExists, got %v", err)
-	}
-}
-
-func TestLogin_InvalidCredentials(t *testing.T) {
-	svc := service.NewAuthService(newMockRepo())
-
-	req := model.LoginRequest{
-		Email:    "nonexistent@example.com",
-		Password: "anypassword",
-	}
-
-	_, err := svc.Login(req)
-	if err != service.ErrInvalidCredentials {
-		t.Errorf("expected ErrInvalidCredentials, got %v", err)
+		t.Errorf("beklenen ErrEmailExists, alınan %v", err)
 	}
 }
 
@@ -204,6 +200,205 @@ func TestRegister_EmptyFirstName(t *testing.T) {
 
 	_, err := svc.Register(req)
 	if err != service.ErrFirstNameRequired {
-		t.Errorf("expected ErrFirstNameRequired, got %v", err)
+		t.Errorf("beklenen ErrFirstNameRequired, alınan %v", err)
+	}
+}
+
+func TestRegister_EmptyLastName(t *testing.T) {
+	svc := service.NewAuthService(newMockRepo())
+
+	req := model.RegisterRequest{
+		Email:           "test@example.com",
+		Password:        "password123",
+		PasswordConfirm: "password123",
+		FirstName:       "Test",
+		LastName:        "",
+	}
+
+	_, err := svc.Register(req)
+	if err != service.ErrLastNameRequired {
+		t.Errorf("beklenen ErrLastNameRequired, alınan %v", err)
+	}
+}
+
+// ── Login testleri ────────────────────────────────────────────────────────────
+
+func TestLogin_Success(t *testing.T) {
+	repo := newMockRepo()
+	svc := service.NewAuthService(repo)
+
+	// Önce kayıt ol
+	_, err := svc.Register(model.RegisterRequest{
+		Email:           "login@example.com",
+		Password:        "password123",
+		PasswordConfirm: "password123",
+		FirstName:       "Login",
+		LastName:        "User",
+	})
+	if err != nil {
+		t.Fatalf("kayıt başarısız: %v", err)
+	}
+
+	result, err := svc.Login(model.LoginRequest{
+		Email:    "login@example.com",
+		Password: "password123",
+	})
+	if err != nil {
+		t.Fatalf("giriş başarısız: %v", err)
+	}
+	if result.Token == "" {
+		t.Error("JWT token boş olmamalı")
+	}
+	if result.User.Email != "login@example.com" {
+		t.Errorf("beklenen email login@example.com, alınan %s", result.User.Email)
+	}
+}
+
+func TestLogin_WrongPassword(t *testing.T) {
+	repo := newMockRepo()
+	svc := service.NewAuthService(repo)
+
+	_, err := svc.Register(model.RegisterRequest{
+		Email:           "user@example.com",
+		Password:        "correctpassword",
+		PasswordConfirm: "correctpassword",
+		FirstName:       "Test",
+		LastName:        "User",
+	})
+	if err != nil {
+		t.Fatalf("kayıt başarısız: %v", err)
+	}
+
+	_, err = svc.Login(model.LoginRequest{
+		Email:    "user@example.com",
+		Password: "wrongpassword",
+	})
+	if err != service.ErrInvalidCredentials {
+		t.Errorf("beklenen ErrInvalidCredentials, alınan %v", err)
+	}
+}
+
+func TestLogin_NonExistentUser(t *testing.T) {
+	svc := service.NewAuthService(newMockRepo())
+
+	_, err := svc.Login(model.LoginRequest{
+		Email:    "nonexistent@example.com",
+		Password: "anypassword",
+	})
+	if err != service.ErrInvalidCredentials {
+		t.Errorf("beklenen ErrInvalidCredentials, alınan %v", err)
+	}
+}
+
+func TestLogin_InactiveAccount(t *testing.T) {
+	repo := newMockRepo()
+
+	// Pasif kullanıcı doğrudan repo'ya ekle
+	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), 12)
+	repo.users = append(repo.users, model.User{
+		ID:       1,
+		Email:    "inactive@example.com",
+		Password: string(hash),
+		IsActive: false,
+	})
+
+	svc := service.NewAuthService(repo)
+	_, err := svc.Login(model.LoginRequest{
+		Email:    "inactive@example.com",
+		Password: "password123",
+	})
+	if err != service.ErrUserNotActive {
+		t.Errorf("beklenen ErrUserNotActive, alınan %v", err)
+	}
+}
+
+// ── UpdateProfile testleri ────────────────────────────────────────────────────
+
+func TestUpdateProfile_UpdateName(t *testing.T) {
+	repo := newMockRepo()
+	svc := service.NewAuthService(repo)
+
+	// Önce kullanıcı oluştur
+	result, err := svc.Register(model.RegisterRequest{
+		Email:           "profile@example.com",
+		Password:        "password123",
+		PasswordConfirm: "password123",
+		FirstName:       "Eski",
+		LastName:        "İsim",
+	})
+	if err != nil {
+		t.Fatalf("kayıt başarısız: %v", err)
+	}
+
+	updated, err := svc.UpdateProfile(result.User.ID, model.UpdateProfileRequest{
+		FirstName: "Yeni",
+		LastName:  "İsim",
+	})
+	if err != nil {
+		t.Fatalf("profil güncellenemedi: %v", err)
+	}
+	if updated.FirstName != "Yeni" {
+		t.Errorf("beklenen FirstName 'Yeni', alınan '%s'", updated.FirstName)
+	}
+	if updated.Password != "" {
+		t.Error("şifre response'da görünmemeli")
+	}
+}
+
+func TestUpdateProfile_PasswordTooShort(t *testing.T) {
+	repo := newMockRepo()
+	svc := service.NewAuthService(repo)
+
+	result, err := svc.Register(model.RegisterRequest{
+		Email:           "profile2@example.com",
+		Password:        "password123",
+		PasswordConfirm: "password123",
+		FirstName:       "Test",
+		LastName:        "User",
+	})
+	if err != nil {
+		t.Fatalf("kayıt başarısız: %v", err)
+	}
+
+	_, err = svc.UpdateProfile(result.User.ID, model.UpdateProfileRequest{
+		Password: "abc", // çok kısa
+	})
+	if err != service.ErrPasswordTooShort {
+		t.Errorf("beklenen ErrPasswordTooShort, alınan %v", err)
+	}
+}
+
+func TestUpdateProfile_PasswordChange(t *testing.T) {
+	repo := newMockRepo()
+	svc := service.NewAuthService(repo)
+
+	result, err := svc.Register(model.RegisterRequest{
+		Email:           "profile3@example.com",
+		Password:        "oldpassword",
+		PasswordConfirm: "oldpassword",
+		FirstName:       "Test",
+		LastName:        "User",
+	})
+	if err != nil {
+		t.Fatalf("kayıt başarısız: %v", err)
+	}
+
+	_, err = svc.UpdateProfile(result.User.ID, model.UpdateProfileRequest{
+		Password: "newpassword123",
+	})
+	if err != nil {
+		t.Fatalf("şifre güncellenemedi: %v", err)
+	}
+
+	// Yeni şifreyle giriş yapılabilmeli
+	loginResult, err := svc.Login(model.LoginRequest{
+		Email:    "profile3@example.com",
+		Password: "newpassword123",
+	})
+	if err != nil {
+		t.Fatalf("yeni şifreyle giriş başarısız: %v", err)
+	}
+	if loginResult.Token == "" {
+		t.Error("token boş olmamalı")
 	}
 }
