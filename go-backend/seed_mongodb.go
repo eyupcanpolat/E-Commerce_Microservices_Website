@@ -44,15 +44,22 @@ func main() {
 	}
 	fmt.Println("✓ MongoDB bağlantısı kuruldu:", uri)
 
-	db := client.Database("eticaret")
+	// Her servis kendi izole DB'sini kullanır (PDF gereksinimi)
+	authDB     := client.Database("eticaret_auth")
+	productDB  := client.Database("eticaret_products")
+	addressDB  := client.Database("eticaret_addresses")
+	orderDB    := client.Database("eticaret_orders")
 
-	seedCollection(ctx, db, "products", "product-service/data/products.json")
-	seedCollection(ctx, db, "users", "auth-service/data/users.json")
-	seedCollection(ctx, db, "addresses", "address-service/data/addresses.json")
-	seedCollection(ctx, db, "orders", "order-service/data/orders.json")
+	seedCollection(ctx, authDB,    "users",     "auth-service/data/users.json")
+	seedCollection(ctx, productDB, "products",  "product-service/data/products.json")
+	seedCollection(ctx, addressDB, "addresses", "address-service/data/addresses.json")
+	seedCollection(ctx, orderDB,   "orders",    "order-service/data/orders.json")
 
-	// counters koleksiyonunu sıfırla/güncelle
-	syncCounters(ctx, db)
+	// Her DB'nin kendi counters koleksiyonu
+	syncCounters(ctx, authDB,    []string{"users"})
+	syncCounters(ctx, productDB, []string{"products"})
+	syncCounters(ctx, addressDB, []string{"addresses"})
+	syncCounters(ctx, orderDB,   []string{"orders"})
 
 	fmt.Println("\n✓ Seed işlemi tamamlandı.")
 }
@@ -100,9 +107,8 @@ func seedCollection(ctx context.Context, db *mongo.Database, collName, filePath 
 	fmt.Printf("  ✓ %s: %d kayıt aktarıldı\n", collName, len(result.InsertedIDs))
 }
 
-func syncCounters(ctx context.Context, db *mongo.Database) {
+func syncCounters(ctx context.Context, db *mongo.Database, collections []string) {
 	counters := db.Collection("counters")
-	collections := []string{"users", "products", "addresses", "orders"}
 
 	for _, name := range collections {
 		coll := db.Collection(name)

@@ -34,7 +34,7 @@ func main() {
 
 	productSvcURL := getEnv("PRODUCT_SERVICE_URL", "http://localhost:8082")
 
-	db := client.Database("eticaret")
+	db := client.Database("eticaret_orders")
 	orderRepo := repository.NewMongoOrderRepository(db)
 	orderSvc := service.NewOrderService(orderRepo, productSvcURL)
 	orderHandler := handler.NewOrderHandler(orderSvc)

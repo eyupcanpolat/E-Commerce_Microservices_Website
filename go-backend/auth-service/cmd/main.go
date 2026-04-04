@@ -35,7 +35,7 @@ func main() {
 	}
 	logger.Info("MongoDB bağlantısı kuruldu", "uri", mongoURI)
 
-	db := client.Database("eticaret")
+	db := client.Database("eticaret_auth")
 	userRepo := repository.NewMongoUserRepository(db)
 	authSvc := service.NewAuthService(userRepo)
 	authHandler := handler.NewAuthHandler(authSvc)

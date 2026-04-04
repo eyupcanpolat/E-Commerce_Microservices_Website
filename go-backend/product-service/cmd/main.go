@@ -33,7 +33,7 @@ func main() {
 	}
 	logger.Info("MongoDB bağlantısı kuruldu", "uri", mongoURI)
 
-	db := client.Database("eticaret")
+	db := client.Database("eticaret_products")
 	productRepo := repository.NewMongoProductRepository(db)
 	productSvc := service.NewProductService(productRepo)
 	productHandler := handler.NewProductHandler(productSvc)

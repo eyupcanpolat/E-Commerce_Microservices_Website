@@ -32,7 +32,7 @@ func main() {
 	}
 	logger.Info("MongoDB bağlantısı kuruldu", "uri", mongoURI)
 
-	db := client.Database("eticaret")
+	db := client.Database("eticaret_addresses")
 	addrRepo := repository.NewMongoAddressRepository(db)
 	addrSvc := service.NewAddressService(addrRepo)
 	addrHandler := handler.NewAddressHandler(addrSvc)
