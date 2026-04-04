@@ -24,9 +24,9 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
+	"eticaret/api-gateway/internal/handler"
 	gwMiddleware "eticaret/api-gateway/internal/middleware"
 	"eticaret/api-gateway/internal/ratelimit"
 	"eticaret/shared/logger"
@@ -40,56 +40,43 @@ func main() {
 	addressURL := getEnv("ADDRESS_SERVICE_URL", "http://localhost:8083")
 	orderURL := getEnv("ORDER_SERVICE_URL", "http://localhost:8084")
 
+	serviceURLs := map[string]string{
+		"/auth":      authURL,
+		"/products":  productURL,
+		"/addresses": addressURL,
+		"/orders":    orderURL,
+	}
+
 	mux := http.NewServeMux()
 
 	// ── Gateway health endpoint ──────────────────────────────────────────────
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"service": "api-gateway",
-			"status":  "ok",
-			"isolation": map[string]string{
-				"model":  "X-Internal-Secret header injection",
-				"detail": "Microservices reject requests without the internal secret",
-			},
-			"routes": map[string]string{
-				"/auth":      authURL,
-				"/products":  productURL,
-				"/addresses": addressURL,
-				"/orders":    orderURL,
-			},
-		})
-	})
+	mux.HandleFunc("GET /health", handler.HealthHandler(serviceURLs))
 
-	// ── Auth Service routes ─────────────────────────
-	// Register, Login are public, Profile update requires JWT
-	authProxy := routeAuth(authURL)
+	// ── Auth Service routes ──────────────────────────────────────────────────
+	// Register, Login are public; Profile update requires JWT
+	authProxy := handler.NewAuthHandler(reverseProxy(authURL))
 	mux.Handle("/auth", authProxy)
 	mux.Handle("/auth/", authProxy)
 
-	// ── Product Service routes ────────────────────────────────────────────────
-	// GET routes: public (product listing, detail, search, featured)
-	// POST/DELETE routes: require JWT + admin role
-	productProxy := routeProducts(productURL)
+	// ── Product Service routes ───────────────────────────────────────────────
+	// GET routes: public | POST/PUT/DELETE: require JWT + admin role
+	productProxy := handler.NewProductHandler(reverseProxy(productURL))
 	mux.Handle("/products", productProxy)
 	mux.Handle("/products/", productProxy)
 
-	// ── Address Service routes — ALL require JWT ──────────────────────────────
-	addressProxy := gwMiddleware.JWTAuth(injectSecret(reverseProxy(addressURL)))
+	// ── Address Service routes — ALL require JWT ─────────────────────────────
+	addressProxy := gwMiddleware.JWTAuth(gwMiddleware.InjectInternalSecret(reverseProxy(addressURL)))
 	mux.Handle("/addresses", addressProxy)
 	mux.Handle("/addresses/", addressProxy)
 
-	// ── Order Service routes — ALL require JWT ────────────────────────────────
-	orderProxy := routeOrders(orderURL)
+	// ── Order Service routes — ALL require JWT ───────────────────────────────
+	orderProxy := handler.NewOrderHandler(reverseProxy(orderURL))
 	mux.Handle("/orders", orderProxy)
 	mux.Handle("/orders/", orderProxy)
 
-	// ── Apply global middleware to everything ─────────────────────────────────────
-	// Rate limiter: 60 req/min per IP (override with RATE_LIMIT_PER_MINUTE env)
+	// ── Apply global middleware ──────────────────────────────────────────────
 	limiter := ratelimit.NewLimiterFromEnv()
-
-	handler := gwMiddleware.Chain(
+	h := gwMiddleware.Chain(
 		mux,
 		gwMiddleware.CORS,
 		gwMiddleware.RequestLogger,
@@ -99,7 +86,7 @@ func main() {
 	port := getEnv("GATEWAY_PORT", "8080")
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%s", port),
-		Handler:      handler,
+		Handler:      h,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -117,67 +104,6 @@ func main() {
 	if err := server.ListenAndServe(); err != nil {
 		logger.Fatal("API Gateway failed", "error", err)
 	}
-}
-
-// routeAuth applies JWT only for PUT /auth/profile
-func routeAuth(authURL string) http.Handler {
-	proxy := reverseProxy(authURL)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPut && strings.Contains(r.URL.Path, "/profile") {
-			gwMiddleware.JWTAuth(injectSecret(proxy)).ServeHTTP(w, r)
-			return
-		}
-		// Public
-		injectSecret(proxy).ServeHTTP(w, r)
-	})
-}
-
-// routeProducts applies different auth rules based on method.
-//   GET  /products/* → public
-//   POST /products   → JWT + admin
-//   DELETE /products/* → JWT + admin
-func routeProducts(productURL string) http.Handler {
-	proxy := reverseProxy(productURL)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			// Public — no auth needed
-			injectSecret(proxy).ServeHTTP(w, r)
-		case http.MethodPost, http.MethodPut, http.MethodDelete:
-			// Admin only
-			gwMiddleware.JWTAuth(
-				gwMiddleware.RequireRole("admin")(
-					injectSecret(proxy),
-				),
-			).ServeHTTP(w, r)
-		default:
-			injectSecret(proxy).ServeHTTP(w, r)
-		}
-	})
-}
-
-// routeOrders applies JWT to all order routes, and admin-only to PUT status.
-func routeOrders(orderURL string) http.Handler {
-	proxy := reverseProxy(orderURL)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// PUT /orders/{id}/status → admin only
-		if r.Method == http.MethodPut && strings.Contains(r.URL.Path, "/status") {
-			gwMiddleware.JWTAuth(
-				gwMiddleware.RequireRole("admin")(
-					injectSecret(proxy),
-				),
-			).ServeHTTP(w, r)
-			return
-		}
-		// All other order routes require JWT (any role)
-		gwMiddleware.JWTAuth(injectSecret(proxy)).ServeHTTP(w, r)
-	})
-}
-
-// injectSecret wraps a handler to add X-Internal-Secret before forwarding.
-// This is the key mechanism for network isolation.
-func injectSecret(next http.Handler) http.Handler {
-	return gwMiddleware.InjectInternalSecret(next)
 }
 
 // reverseProxy creates a reverse proxy handler for the given target URL.
