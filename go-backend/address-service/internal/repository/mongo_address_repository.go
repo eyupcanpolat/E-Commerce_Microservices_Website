@@ -30,8 +30,9 @@ func NewMongoAddressRepository(db *mongo.Database) AddressRepository {
 func (r *mongoAddressRepository) ensureIndexes() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	r.coll.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys: bson.D{{Key: "user_id", Value: 1}},
+	r.coll.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{Keys: bson.D{{Key: "user_id", Value: 1}}},
+		{Keys: bson.D{{Key: "user_id", Value: 1}, {Key: "is_default", Value: 1}}},
 	})
 }
 

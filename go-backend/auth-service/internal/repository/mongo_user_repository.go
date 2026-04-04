@@ -30,9 +30,9 @@ func NewMongoUserRepository(db *mongo.Database) UserRepository {
 func (r *mongoUserRepository) ensureIndexes() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	r.coll.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys:    bson.D{{Key: "email", Value: 1}},
-		Options: options.Index().SetUnique(true),
+	r.coll.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{Keys: bson.D{{Key: "email", Value: 1}}, Options: options.Index().SetUnique(true)},
+		{Keys: bson.D{{Key: "is_active", Value: 1}}},
 	})
 }
 

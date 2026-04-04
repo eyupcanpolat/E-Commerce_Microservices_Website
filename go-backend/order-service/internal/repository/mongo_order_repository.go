@@ -110,7 +110,7 @@ func (r *mongoOrderRepository) Create(order *model.Order) (*model.Order, error) 
 	order.UpdatedAt = time.Now()
 	order.Status = model.StatusPending
 	order.PaymentStatus = "pending"
-	order.OrderNumber = fmt.Sprintf("ORD-%d-%04d", time.Now().Year(), id)
+	order.OrderNumber = fmt.Sprintf("ORD-%d-%05d", time.Now().Year(), id)
 
 	for i := range order.Items {
 		order.Items[i].ID = i + 1

@@ -37,6 +37,7 @@ func (r *mongoProductRepository) ensureIndexes() {
 		{Keys: bson.D{{Key: "is_active", Value: 1}}},
 		{Keys: bson.D{{Key: "is_featured", Value: 1}}},
 		{Keys: bson.D{{Key: "price", Value: 1}}},
+		{Keys: bson.D{{Key: "category_id", Value: 1}, {Key: "is_active", Value: 1}}},
 		{Keys: bson.D{{Key: "name", Value: "text"}, {Key: "description", Value: "text"}}},
 	})
 }

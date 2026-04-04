@@ -32,10 +32,10 @@ services:
       - eticaret-internal
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 30s
+      interval: 20s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 40s
     restart: unless-stopped
 
   # ─── API Gateway — THE ONLY EXTERNALLY EXPOSED SERVICE ───────────────────
