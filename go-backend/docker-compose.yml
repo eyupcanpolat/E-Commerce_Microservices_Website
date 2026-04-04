@@ -212,6 +212,45 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  # ─── Prometheus — Metrik toplama ─────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: eticaret-prometheus
+    ports:
+      - "9090:9090"    # Prometheus UI: http://localhost:9090
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+    networks:
+      - eticaret-internal
+    depends_on:
+      api-gateway:
+        condition: service_started
+    restart: unless-stopped
+
+  # ─── Grafana — Dashboard ve görselleştirme ────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: eticaret-grafana
+    ports:
+      - "3000:3000"    # Grafana UI: http://localhost:3000 (admin/admin)
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "admin"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - eticaret-internal
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
   # ─── k6 Yük Testi — İsteğe bağlı, manuel çalıştırılır ───────────────────────
   # Kullanım: docker compose run --rm k6 run /scripts/k6_load_test.js
   k6:
@@ -232,8 +271,9 @@ services:
 
 # ─── Named Volumes ──────────────────────────────────────────────────────────────────
 volumes:
-  mongo-data:   # MongoDB persistent storage
-  # cdn-data kaldırıldı — CDN artık bind mount kullanıyor (cdn-service/static/)
+  mongo-data:        # MongoDB persistent storage
+  prometheus-data:   # Prometheus metrik geçmişi
+  grafana-data:      # Grafana dashboard ve kullanıcı ayarları
 
 # ─── Networks ────────────────────────────────────────────────────────────────
 networks:
