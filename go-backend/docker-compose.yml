@@ -211,6 +211,24 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  # ─── k6 Yük Testi — İsteğe bağlı, manuel çalıştırılır ───────────────────────
+  # Kullanım: docker compose run --rm k6 run /scripts/k6_load_test.js
+  k6:
+    image: grafana/k6:latest
+    container_name: eticaret-k6
+    volumes:
+      - ../load-tests:/scripts        # Test scriptleri
+      - ../load-tests/results:/results # Sonuçlar
+    environment:
+      BASE_URL: "http://api-gateway:8080"
+    networks:
+      - eticaret-internal
+    depends_on:
+      api-gateway:
+        condition: service_started
+    profiles:
+      - loadtest   # Sadece: docker compose --profile loadtest run k6 run /scripts/k6_load_test.js
+
 # ─── Named Volumes ──────────────────────────────────────────────────────────────────
 volumes:
   mongo-data:   # MongoDB persistent storage

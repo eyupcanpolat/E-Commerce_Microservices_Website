@@ -24,11 +24,13 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strconv"
 	"time"
 
 	"eticaret/api-gateway/internal/handler"
 	gwMiddleware "eticaret/api-gateway/internal/middleware"
 	"eticaret/api-gateway/internal/ratelimit"
+	"eticaret/api-gateway/internal/store"
 	"eticaret/shared/logger"
 )
 
@@ -47,10 +49,32 @@ func main() {
 		"/orders":    orderURL,
 	}
 
+	// Gateway'in kendi izole MongoDB store'u (eticaret_gateway DB)
+	gatewayStore := store.NewGatewayStore()
+
 	mux := http.NewServeMux()
 
 	// ── Gateway health endpoint ──────────────────────────────────────────────
 	mux.HandleFunc("GET /health", handler.HealthHandler(serviceURLs))
+
+	// ── Gateway request logs — izole DB'den son logları döner ───────────────
+	mux.HandleFunc("GET /gateway/logs", func(w http.ResponseWriter, r *http.Request) {
+		limit := int64(100)
+		if l := r.URL.Query().Get("limit"); l != "" {
+			if n, err := strconv.ParseInt(l, 10, 64); err == nil && n > 0 {
+				limit = n
+			}
+		}
+		logs, err := gatewayStore.GetRecentLogs(limit)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": err.Error()})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "data": logs})
+	})
 
 	// ── Auth Service routes ──────────────────────────────────────────────────
 	// Register, Login are public; Profile update requires JWT
