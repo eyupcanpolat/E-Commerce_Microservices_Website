@@ -3,8 +3,11 @@
 package tests
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
@@ -346,5 +349,119 @@ func TestGetUserOrders_ReturnsEmpty(t *testing.T) {
 	}
 	if len(orders) != 0 {
 		t.Errorf("expected 0 orders for unknown user, got %d", len(orders))
+	}
+}
+
+// ── CreateOrder + fake product-service testleri ───────────────────────────────
+
+// fakeProductServer sahte bir product-service başlatır.
+func fakeProductServer(price float64, stockStatus string) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"data": map[string]interface{}{
+				"id":           1,
+				"name":         "Test Ürün",
+				"sku":          "TST-001",
+				"price":        price,
+				"sale_price":   nil,
+				"stock_status": stockStatus,
+			},
+		})
+	}))
+}
+
+func TestCreateOrder_Success(t *testing.T) {
+	srv := fakeProductServer(100.0, "in_stock")
+	defer srv.Close()
+
+	repo := newMockOrderRepo()
+	svc := service.NewOrderService(repo, srv.URL)
+
+	order, err := svc.CreateOrder(1, model.CreateOrderRequest{
+		Items: []model.OrderItemRequest{{ProductID: 1, Quantity: 2}},
+	})
+	if err != nil {
+		t.Fatalf("beklenmedik hata: %v", err)
+	}
+	if order.ID == 0 {
+		t.Error("sipariş ID atanmış olmalı")
+	}
+	if order.UserID != 1 {
+		t.Errorf("beklenen userID 1, alınan %d", order.UserID)
+	}
+	if order.Subtotal != 200.0 { // 2 x 100
+		t.Errorf("beklenen subtotal 200, alınan %f", order.Subtotal)
+	}
+}
+
+func TestCreateOrder_ShippingCost_PaidUnder500(t *testing.T) {
+	srv := fakeProductServer(100.0, "in_stock")
+	defer srv.Close()
+
+	repo := newMockOrderRepo()
+	svc := service.NewOrderService(repo, srv.URL)
+
+	order, err := svc.CreateOrder(1, model.CreateOrderRequest{
+		Items: []model.OrderItemRequest{{ProductID: 1, Quantity: 1}}, // 100 TL < 500
+	})
+	if err != nil {
+		t.Fatalf("beklenmedik hata: %v", err)
+	}
+	if order.ShippingCost != 29.90 {
+		t.Errorf("500 TL altı için kargo 29.90 olmalı, alınan %f", order.ShippingCost)
+	}
+}
+
+func TestCreateOrder_ShippingCost_FreeOver500(t *testing.T) {
+	srv := fakeProductServer(600.0, "in_stock")
+	defer srv.Close()
+
+	repo := newMockOrderRepo()
+	svc := service.NewOrderService(repo, srv.URL)
+
+	order, err := svc.CreateOrder(1, model.CreateOrderRequest{
+		Items: []model.OrderItemRequest{{ProductID: 1, Quantity: 1}}, // 600 TL >= 500
+	})
+	if err != nil {
+		t.Fatalf("beklenmedik hata: %v", err)
+	}
+	if order.ShippingCost != 0 {
+		t.Errorf("500 TL üstü için kargo ücretsiz olmalı, alınan %f", order.ShippingCost)
+	}
+}
+
+func TestCreateOrder_TaxCalculation(t *testing.T) {
+	srv := fakeProductServer(100.0, "in_stock")
+	defer srv.Close()
+
+	repo := newMockOrderRepo()
+	svc := service.NewOrderService(repo, srv.URL)
+
+	order, err := svc.CreateOrder(1, model.CreateOrderRequest{
+		Items: []model.OrderItemRequest{{ProductID: 1, Quantity: 1}},
+	})
+	if err != nil {
+		t.Fatalf("beklenmedik hata: %v", err)
+	}
+	expectedTax := 100.0 * 0.18 // %18 KDV
+	if order.Tax != expectedTax {
+		t.Errorf("beklenen KDV %f, alınan %f", expectedTax, order.Tax)
+	}
+}
+
+func TestCreateOrder_ProductOutOfStock(t *testing.T) {
+	srv := fakeProductServer(100.0, "out_of_stock")
+	defer srv.Close()
+
+	repo := newMockOrderRepo()
+	svc := service.NewOrderService(repo, srv.URL)
+
+	_, err := svc.CreateOrder(1, model.CreateOrderRequest{
+		Items: []model.OrderItemRequest{{ProductID: 1, Quantity: 1}},
+	})
+	if err == nil {
+		t.Error("stokta olmayan ürün için hata beklendi")
 	}
 }
