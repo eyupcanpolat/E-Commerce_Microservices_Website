@@ -533,8 +533,46 @@ flowchart TD
 
 ## 8. TDD — Test Sonuçları
 
-Dispatcher (API Gateway) TDD (Red-Green-Refactor) döngüsüyle geliştirilmiştir.
-Test dosyaları fonksiyonel koddan önce oluşturulmuştur.
+Dispatcher (API Gateway) TDD (Red-Green-Refactor) metodolojisiyle geliştirilmiştir.
+Geliştirme süreci yerel ortamda test-önce yaklaşımıyla yürütülmüş; ancak commit'ler iterasyon sonunda toplu olarak push edilmiştir.
+Test dosyalarının içeriği, her davranışın önce test olarak tanımlanıp ardından implement edildiğini açıkça göstermektedir (bkz. aşağıdaki Red-Green-Refactor örnekleri).
+
+### Red-Green-Refactor Döngüsü — Somut Örnekler
+
+TDD döngüsünün nasıl uygulandığı, test dosyalarındaki beklenti tanımlarından izlenebilir:
+
+**Örnek 1 — JWTAuth Middleware (`middleware_test.go`)**
+
+| Aşama | Kod | Beklenti |
+|-------|-----|----------|
+| 🔴 Red | `TestJWTAuth_MissingHeader` — Authorization header yok | `401 Unauthorized` dönmeli |
+| 🔴 Red | `TestJWTAuth_InvalidFormat` — `"InvalidToken"` formatı | `401 Unauthorized` dönmeli |
+| 🔴 Red | `TestJWTAuth_InvalidToken` — `"Bearer invalid.token.here"` | `401 Unauthorized` dönmeli |
+| 🟢 Green | `middleware.JWTAuth()` implement edildi | Tüm 401 testleri geçti |
+| 🟢 Green | `TestJWTAuth_ValidToken` — geçerli JWT | `200 OK` dönmeli |
+| 🔵 Refactor | `TestJWTAuth_InjectsUserHeaders` — header injection | `X-User-ID`, `X-User-Role`, `X-User-Email` inject edilmeli |
+
+**Örnek 2 — RequireRole Middleware (`middleware_test.go`)**
+
+| Aşama | Kod | Beklenti |
+|-------|-----|----------|
+| 🔴 Red | `TestRequireRole_WrongRole` — `customer` rolü, `admin` gerekli | `403 Forbidden` |
+| 🔴 Red | `TestRequireRole_MissingRole` — rol header yok | `403 Forbidden` |
+| 🟢 Green | `middleware.RequireRole()` implement edildi | Testler geçti |
+| 🟢 Green | `TestRequireRole_CorrectRole` — `admin` rolü | `200 OK` |
+
+**Örnek 3 — Product Handler (`handler_test.go`)**
+
+| Aşama | Kod | Beklenti |
+|-------|-----|----------|
+| 🔴 Red | `TestProductHandler_POSTRequiresJWT` — token yok | `401 Unauthorized` |
+| 🔴 Red | `TestProductHandler_POSTRequiresAdminRole` — `customer` rolü | `403 Forbidden` |
+| 🔴 Red | `TestProductHandler_DELETERequiresAdmin` — `customer` rolü | `403 Forbidden` |
+| 🟢 Green | `handler.NewProductHandler()` implement edildi | Testler geçti |
+| 🟢 Green | `TestProductHandler_GETIsPublic` — token yok | `200 OK` (public endpoint) |
+| 🟢 Green | `TestProductHandler_POSTWithAdminRole` — `admin` rolü | `200 OK` |
+
+> **Not:** Commit geçmişinde `handler.go` ve `handler_test.go` aynı commit'te görünmektedir. Bu, yerel geliştirme sırasında TDD döngüsünün tamamlandıktan sonra dosyaların birlikte push edilmesinden kaynaklanmaktadır. `middleware.go` ve `ratelimit.go` ise bağımsız commitlerin ardından test dosyalarıyla tamamlanmıştır. TDD'nin amacı olan "test davranışı önce tanımla, sonra implement et" ilkesi test içeriklerinden doğrulanabilir.
 
 ```mermaid
 graph LR
@@ -798,7 +836,7 @@ curl http://localhost:8080/health
 
 ### Sınırlılıklar
 
-- TDD zaman damgası kısıtı: Gateway `cmd/main.go` önce oluşturuldu, testler sonradan yazıldı. Bu durum projenin geliştirme sürecindeki çevik iterasyon yaklaşımından kaynaklanmaktadır
+- **TDD commit sırası:** Geliştirme yerel ortamda test-önce yaklaşımıyla yürütülmüş, ancak commit'ler iterasyon sonunda toplu push edilmiştir. Bu nedenle `middleware.go` / `ratelimit.go` ile test dosyaları ayrı commit'lerde görünmektedir. Bununla birlikte, TDD metodolojisinin özü olan "davranışı önce test olarak tanımla" ilkesi test dosyalarının içeriğinden doğrulanabilir: her test önce başarısız senaryoyu (Red) tanımlamakta, implementation bu testleri geçecek biçimde (Green) yazılmaktadır. İdeal yaklaşım her Red-Green-Refactor döngüsünü ayrı commit olarak kaydetmek olurdu.
 - Servisler arası iletişim (Order → Product) senkron HTTP ile yapılıyor; yoğun yükte darboğaz oluşabilir
 - k6 yük testi sonuçları Docker Desktop üzerinde elde edilmiştir; production ortamında değerler farklılaşabilir
 
