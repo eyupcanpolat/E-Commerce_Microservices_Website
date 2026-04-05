@@ -36,7 +36,7 @@ export default function () {
   });
   errorRate.add(productsRes.status !== 200);
 
-  sleep(1);
+  sleep(3); // 2 req / 3s ≈ 40 req/dk → rate limit (60/dk) altında kalır
 }
 
 export function handleSummary(data) {
@@ -56,8 +56,9 @@ export function handleSummary(data) {
 Detaylı sonuçlar: results/smoke_summary.json
 `;
 
+  const resultsDir = __ENV.RESULTS_DIR || '/results';
   return {
-    'results/smoke_summary.json': JSON.stringify(data, null, 2),
+    [`${resultsDir}/smoke_summary.json`]: JSON.stringify(data, null, 2),
     stdout: summary,
   };
 }

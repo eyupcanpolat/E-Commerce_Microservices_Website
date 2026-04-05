@@ -70,8 +70,9 @@ export function handleSummary(data) {
 Detaylı sonuçlar: results/stress_summary.json
 `;
 
+  const resultsDir = __ENV.RESULTS_DIR || '/results';
   return {
-    'results/stress_summary.json': JSON.stringify(data, null, 2),
+    [`${resultsDir}/stress_summary.json`]: JSON.stringify(data, null, 2),
     stdout: summary,
   };
 }

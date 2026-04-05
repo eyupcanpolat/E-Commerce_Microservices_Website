@@ -173,8 +173,9 @@ Detaylı sonuçlar: results/load_summary.json
 Grafana: http://localhost:3000 → k6 Load Testing
 `;
 
+  const resultsDir = __ENV.RESULTS_DIR || '/results';
   return {
-    'results/load_summary.json': JSON.stringify(data, null, 2),
+    [`${resultsDir}/load_summary.json`]: JSON.stringify(data, null, 2),
     stdout: summary,
   };
 }
