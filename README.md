@@ -10,7 +10,7 @@
 ---
 
 ## İçindekiler
-
+0. [Adım: Projeyi Çalıştırma]
 1. [Giriş — Problem Tanımı ve Amaç](#1-giriş--problem-tanımı-ve-amaç)
 2. [Sistem Tasarımı](#2-sistem-tasarımı)
 3. [Richardson Olgunluk Modeli](#3-richardson-olgunluk-modeli)
