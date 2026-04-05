@@ -1,0 +1,290 @@
+{
+  "title": "k6 Load Testing",
+  "uid": "k6-load-testing",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-30m", "to": "now" },
+  "tags": ["k6", "load-testing", "performance"],
+  "panels": [
+
+    {
+      "id": 1,
+      "title": "Aktif Sanal Kullanıcı Sayısı (VU)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 7 },
+      "targets": [
+        {
+          "expr": "k6_vus",
+          "legendFormat": "VU",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "custom": { "fillOpacity": 20 }
+        }
+      }
+    },
+
+    {
+      "id": 2,
+      "title": "İstek/saniye (RPS)",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 7 },
+      "targets": [
+        {
+          "expr": "rate(k6_http_reqs_total[1m])",
+          "legendFormat": "req/s",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "custom": { "fillOpacity": 15 }
+        }
+      }
+    },
+
+    {
+      "id": 3,
+      "title": "Hata Oranı",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 7 },
+      "targets": [
+        {
+          "expr": "k6_http_req_failed_rate",
+          "legendFormat": "hata oranı",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": { "mode": "fixed", "fixedColor": "red" },
+          "custom": { "fillOpacity": 20 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.01 },
+              { "color": "red", "value": 0.05 }
+            ]
+          }
+        }
+      }
+    },
+
+    {
+      "id": 4,
+      "title": "HTTP Yanıt Süreleri — p(50) / p(95) / p(99)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 7, "w": 16, "h": 8 },
+      "targets": [
+        {
+          "expr": "k6_http_req_duration{quantile=\"0.5\"}",
+          "legendFormat": "p(50) — medyan",
+          "refId": "A"
+        },
+        {
+          "expr": "k6_http_req_duration{quantile=\"0.95\"}",
+          "legendFormat": "p(95)",
+          "refId": "B"
+        },
+        {
+          "expr": "k6_http_req_duration{quantile=\"0.99\"}",
+          "legendFormat": "p(99)",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10 }
+        }
+      }
+    },
+
+    {
+      "id": 5,
+      "title": "Eşik Durumu",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 7, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "k6_http_req_duration{quantile=\"0.95\"}",
+          "legendFormat": "p(95) ms",
+          "refId": "A"
+        },
+        {
+          "expr": "k6_http_req_failed_rate * 100",
+          "legendFormat": "Hata %",
+          "refId": "B"
+        },
+        {
+          "expr": "k6_vus",
+          "legendFormat": "Aktif VU",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 500 },
+              { "color": "red", "value": 1000 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "vertical",
+        "colorMode": "background"
+      }
+    },
+
+    {
+      "id": 6,
+      "title": "Servis Bazlı Yanıt Süresi — p(95)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 15, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "expr": "k6_auth_duration{quantile=\"0.95\"}",
+          "legendFormat": "Auth Service p(95)",
+          "refId": "A"
+        },
+        {
+          "expr": "k6_product_duration{quantile=\"0.95\"}",
+          "legendFormat": "Product Service p(95)",
+          "refId": "B"
+        },
+        {
+          "expr": "k6_order_duration{quantile=\"0.95\"}",
+          "legendFormat": "Order Service p(95)",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10 }
+        }
+      }
+    },
+
+    {
+      "id": 7,
+      "title": "Toplam İstek Sayısı",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 23, "w": 6, "h": 5 },
+      "targets": [
+        {
+          "expr": "k6_http_reqs_total",
+          "legendFormat": "Toplam",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "fixed", "fixedColor": "blue" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background"
+      }
+    },
+
+    {
+      "id": 8,
+      "title": "Ort. Yanıt Süresi",
+      "type": "stat",
+      "gridPos": { "x": 6, "y": 23, "w": 6, "h": 5 },
+      "targets": [
+        {
+          "expr": "k6_http_req_duration{quantile=\"0.5\"}",
+          "legendFormat": "Ortalama",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 300 },
+              { "color": "red", "value": 800 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background"
+      }
+    },
+
+    {
+      "id": 9,
+      "title": "Rate Limit (429) İsabetleri",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 23, "w": 6, "h": 5 },
+      "targets": [
+        {
+          "expr": "k6_rate_limit_hits_total",
+          "legendFormat": "429 Hits",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "fixed", "fixedColor": "orange" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background"
+      }
+    },
+
+    {
+      "id": 10,
+      "title": "Test Sürecindeki İterasyonlar",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 23, "w": 6, "h": 5 },
+      "targets": [
+        {
+          "expr": "k6_iterations_total",
+          "legendFormat": "İterasyon",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "fixed", "fixedColor": "purple" }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background"
+      }
+    }
+  ]
+}

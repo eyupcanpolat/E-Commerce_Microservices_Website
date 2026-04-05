@@ -51,7 +51,27 @@ export default function () {
 }
 
 export function handleSummary(data) {
+  const metrics  = data.metrics;
+  const duration = metrics.http_req_duration;
+  const failed   = metrics.http_req_failed;
+
+  const summary = `
+╔══════════════════════════════════════════════════════╗
+║         STRES TESTİ SONUÇLARI (100→1000 VU)         ║
+╠══════════════════════════════════════════════════════╣
+║ Toplam İstek      : ${String(metrics.http_reqs?.values?.count || 0).padStart(10)}                    ║
+║ Hata Oranı        : ${String(((failed?.values?.rate || 0) * 100).toFixed(2) + '%').padStart(10)}                    ║
+║ Ort. Yanıt Süresi : ${String((duration?.values?.avg || 0).toFixed(0) + 'ms').padStart(10)}                    ║
+║ p(95)             : ${String((duration?.values?.['p(95)'] || 0).toFixed(0) + 'ms').padStart(10)}                    ║
+║ p(99)             : ${String((duration?.values?.['p(99)'] || 0).toFixed(0) + 'ms').padStart(10)}                    ║
+║ Rate Limit (429)  : ${String(metrics.rate_limit_429?.values?.count || 0).padStart(10)}                    ║
+║ Servis Hataları   : ${String(metrics.service_5xx?.values?.count || 0).padStart(10)}                    ║
+╚══════════════════════════════════════════════════════╝
+Detaylı sonuçlar: results/stress_summary.json
+`;
+
   return {
     'results/stress_summary.json': JSON.stringify(data, null, 2),
+    stdout: summary,
   };
 }

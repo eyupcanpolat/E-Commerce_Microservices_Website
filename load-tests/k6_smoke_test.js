@@ -25,7 +25,7 @@ export default function () {
   const healthRes = http.get(`${BASE_URL}/health`);
   check(healthRes, {
     'health status 200': (r) => r.status === 200,
-    'health ok': (r) => JSON.parse(r.body).status === 'ok',
+    'health ok': (r) => { try { return JSON.parse(r.body).status === 'ok'; } catch { return false; } },
   });
   errorRate.add(healthRes.status !== 200);
 
@@ -37,4 +37,27 @@ export default function () {
   errorRate.add(productsRes.status !== 200);
 
   sleep(1);
+}
+
+export function handleSummary(data) {
+  const metrics  = data.metrics;
+  const duration = metrics.http_req_duration;
+  const failed   = metrics.http_req_failed;
+
+  const summary = `
+╔══════════════════════════════════════════════════╗
+║           SMOKE TESTİ SONUÇLARI (1 VU)          ║
+╠══════════════════════════════════════════════════╣
+║ Toplam İstek      : ${String(metrics.http_reqs?.values?.count || 0).padStart(8)}                  ║
+║ Hata Oranı        : ${String(((failed?.values?.rate || 0) * 100).toFixed(2) + '%').padStart(8)}                  ║
+║ Ort. Yanıt Süresi : ${String((duration?.values?.avg || 0).toFixed(0) + 'ms').padStart(8)}                  ║
+║ p(95)             : ${String((duration?.values?.['p(95)'] || 0).toFixed(0) + 'ms').padStart(8)}                  ║
+╚══════════════════════════════════════════════════╝
+Detaylı sonuçlar: results/smoke_summary.json
+`;
+
+  return {
+    'results/smoke_summary.json': JSON.stringify(data, null, 2),
+    stdout: summary,
+  };
 }

@@ -16,7 +16,7 @@ const orderDuration   = new Trend('order_duration');
 const rateLimitHits   = new Counter('rate_limit_hits');
 
 export const options = {
-  // Aşamalı yük: 50 → 100 → 200 → 500 kullanıcı
+  // Aşamalı yük: 50 → 100 → 200 → 500 kullanıcı (PDF isterine uygun)
   stages: [
     { duration: '30s', target: 50  }, // Ramping up to 50
     { duration: '60s', target: 50  }, // 50 VU sabit
@@ -35,6 +35,8 @@ export const options = {
     auth_duration:          ['p(95)<800'],
     product_duration:       ['p(95)<500'],
   },
+  // Prometheus Remote Write: docker-compose'da K6_PROMETHEUS_RW_SERVER_URL env ile aktifleşir
+  // Grafana'da gerçek zamanlı görüntüleme sağlar
 };
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
@@ -151,26 +153,28 @@ export default function () {
 }
 
 export function handleSummary(data) {
-  return {
-    'results/load_summary.json': JSON.stringify(data, null, 2),
-    stdout: textSummary(data, { indent: ' ', enableColors: true }),
-  };
-}
-
-// k6 built-in text summary (basit versiyon)
-function textSummary(data) {
-  const metrics = data.metrics;
+  const metrics  = data.metrics;
   const duration = metrics.http_req_duration;
   const failed   = metrics.http_req_failed;
 
-  return `
-=== YÜK TESTİ SONUÇLARI ===
-Toplam İstek    : ${metrics.http_reqs?.values?.count || 0}
-Hata Oranı      : ${((failed?.values?.rate || 0) * 100).toFixed(2)}%
-Ort. Yanıt Süresi: ${(duration?.values?.avg || 0).toFixed(0)}ms
-p(95)           : ${(duration?.values?.['p(95)'] || 0).toFixed(0)}ms
-p(99)           : ${(duration?.values?.['p(99)'] || 0).toFixed(0)}ms
-Rate Limit Hits : ${metrics.rate_limit_hits?.values?.count || 0}
-===========================
+  const summary = `
+╔══════════════════════════════════════════════════════╗
+║           YÜK TESTİ SONUÇLARI (50→500 VU)           ║
+╠══════════════════════════════════════════════════════╣
+║ Toplam İstek      : ${String(metrics.http_reqs?.values?.count || 0).padStart(10)}                    ║
+║ Hata Oranı        : ${String(((failed?.values?.rate || 0) * 100).toFixed(2) + '%').padStart(10)}                    ║
+║ Ort. Yanıt Süresi : ${String((duration?.values?.avg || 0).toFixed(0) + 'ms').padStart(10)}                    ║
+║ p(90)             : ${String((duration?.values?.['p(90)'] || 0).toFixed(0) + 'ms').padStart(10)}                    ║
+║ p(95)             : ${String((duration?.values?.['p(95)'] || 0).toFixed(0) + 'ms').padStart(10)}                    ║
+║ p(99)             : ${String((duration?.values?.['p(99)'] || 0).toFixed(0) + 'ms').padStart(10)}                    ║
+║ Rate Limit (429)  : ${String(metrics.rate_limit_hits?.values?.count || 0).padStart(10)}                    ║
+╚══════════════════════════════════════════════════════╝
+Detaylı sonuçlar: results/load_summary.json
+Grafana: http://localhost:3000 → k6 Load Testing
 `;
+
+  return {
+    'results/load_summary.json': JSON.stringify(data, null, 2),
+    stdout: summary,
+  };
 }
