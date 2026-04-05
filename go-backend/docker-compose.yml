@@ -225,7 +225,6 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=7d'
-      - '--web.enable-remote-write-receiver'
     networks:
       - eticaret-internal
     depends_on:
@@ -252,30 +251,36 @@ services:
       - prometheus
     restart: unless-stopped
 
+  # ─── Frontend Servisi — Yalıtılmış Nginx UI ──────────────────────────────────
+  frontend:
+    image: nginx:alpine
+    container_name: eticaret-frontend
+    ports:
+      - "8000:80"    # Tarayıcıdan http://O_BILGISAYARIN_IP:8000 ile erişilecek
+    volumes:
+      - ../frontend:/usr/share/nginx/html:ro
+      - ../frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - eticaret-internal
+    restart: unless-stopped
+
   # ─── k6 Yük Testi — İsteğe bağlı, manuel çalıştırılır ───────────────────────
-  # Kullanım:
-  #   Yük testi (50→100→200→500 VU): docker compose --profile loadtest run --rm k6 run /scripts/k6_load_test.js
-  #   Smoke testi (1 VU, 30s)       : docker compose --profile loadtest run --rm k6 run /scripts/k6_smoke_test.js
-  #   Stres testi (100→1000 VU)     : docker compose --profile loadtest run --rm k6 run /scripts/k6_stress_test.js
-  # Sonuçlar Grafana'da gerçek zamanlı izlenir: http://localhost:3000 (k6 Load Testing dashboard)
+  # Kullanım: docker compose run --rm k6 run /scripts/k6_load_test.js
   k6:
     image: grafana/k6:latest
     container_name: eticaret-k6
     volumes:
-      - ../load-tests:/scripts         # Test scriptleri
-      - ../load-tests/results:/results # JSON çıktı dosyaları
+      - ../load-tests:/scripts        # Test scriptleri
+      - ../load-tests/results:/results # Sonuçlar
     environment:
       BASE_URL: "http://api-gateway:8080"
-      # k6 → Prometheus Remote Write: metrikler Grafana'da canlı görünür
-      K6_PROMETHEUS_RW_SERVER_URL: "http://prometheus:9090/api/v1/write"
-      K6_PROMETHEUS_RW_TREND_STATS: "p(50),p(90),p(95),p(99),min,max,avg"
-      K6_PROMETHEUS_RW_PUSH_INTERVAL: "5s"
     networks:
       - eticaret-internal
     depends_on:
-      - prometheus
+      api-gateway:
+        condition: service_started
     profiles:
-      - loadtest
+      - loadtest   # Sadece: docker compose --profile loadtest run k6 run /scripts/k6_load_test.js
 
 # ─── Named Volumes ──────────────────────────────────────────────────────────────────
 volumes:
