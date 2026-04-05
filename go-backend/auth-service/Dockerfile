@@ -21,7 +21,7 @@ RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 
 COPY --from=builder /app/auth-service .
-COPY --from=builder /build/auth-service/data/ ./data/
+
 
 # Non-root user for security
 RUN adduser -D -g '' appuser
