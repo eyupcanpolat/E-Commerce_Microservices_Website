@@ -28,6 +28,22 @@
 15. [Sonuç ve Tartışma](#15-sonuç-ve-tartışma)
 
 ---
+## 0. Adım: Projeyi Çalıştırma
+
+Projeyi başlatmak ve demo verilerini yüklemek için aşağıdaki adımları takip ediniz.
+
+### Docker ile Projeyi Başlatma 
+Aşağıdaki komut ile proje Docker üzerinden arka planda çalıştırılır:
+
+```bash
+docker compose up -d
+```
+
+### MongoDB Demo Verilerini Yükleme
+Bu işlem, MongoDB veritabanına gerekli demo verilerini otomatik olarak ekler.
+```bash
+./seed_mongodb.exe
+```
 
 ## 1. Giriş — Problem Tanımı ve Amaç
 
