@@ -86,17 +86,17 @@
       "gridPos": { "x": 0, "y": 7, "w": 16, "h": 8 },
       "targets": [
         {
-          "expr": "k6_http_req_duration{quantile=\"0.5\"}",
+          "expr": "k6_http_req_duration_p50",
           "legendFormat": "p(50) — medyan",
           "refId": "A"
         },
         {
-          "expr": "k6_http_req_duration{quantile=\"0.95\"}",
+          "expr": "k6_http_req_duration_p95",
           "legendFormat": "p(95)",
           "refId": "B"
         },
         {
-          "expr": "k6_http_req_duration{quantile=\"0.99\"}",
+          "expr": "k6_http_req_duration_p99",
           "legendFormat": "p(99)",
           "refId": "C"
         }
@@ -117,7 +117,7 @@
       "gridPos": { "x": 16, "y": 7, "w": 8, "h": 8 },
       "targets": [
         {
-          "expr": "k6_http_req_duration{quantile=\"0.95\"}",
+          "expr": "k6_http_req_duration_p95",
           "legendFormat": "p(95) ms",
           "refId": "A"
         },
@@ -159,17 +159,17 @@
       "gridPos": { "x": 0, "y": 15, "w": 24, "h": 8 },
       "targets": [
         {
-          "expr": "k6_auth_duration{quantile=\"0.95\"}",
+          "expr": "k6_auth_duration_p95",
           "legendFormat": "Auth Service p(95)",
           "refId": "A"
         },
         {
-          "expr": "k6_product_duration{quantile=\"0.95\"}",
+          "expr": "k6_product_duration_p95",
           "legendFormat": "Product Service p(95)",
           "refId": "B"
         },
         {
-          "expr": "k6_order_duration{quantile=\"0.95\"}",
+          "expr": "k6_order_duration_p95",
           "legendFormat": "Order Service p(95)",
           "refId": "C"
         }
@@ -214,7 +214,7 @@
       "gridPos": { "x": 6, "y": 23, "w": 6, "h": 5 },
       "targets": [
         {
-          "expr": "k6_http_req_duration{quantile=\"0.5\"}",
+          "expr": "k6_http_req_duration_avg",
           "legendFormat": "Ortalama",
           "refId": "A"
         }
