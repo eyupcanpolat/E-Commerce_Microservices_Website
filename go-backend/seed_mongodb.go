@@ -22,6 +22,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -45,21 +46,24 @@ func main() {
 	fmt.Println("✓ MongoDB bağlantısı kuruldu:", uri)
 
 	// Her servis kendi izole DB'sini kullanır (PDF gereksinimi)
-	authDB     := client.Database("eticaret_auth")
-	productDB  := client.Database("eticaret_products")
-	addressDB  := client.Database("eticaret_addresses")
-	orderDB    := client.Database("eticaret_orders")
+	authDB := client.Database("eticaret_auth")
+	productDB := client.Database("eticaret_products")
+	addressDB := client.Database("eticaret_addresses")
+	orderDB := client.Database("eticaret_orders")
 
-	seedCollection(ctx, authDB,    "users",     "auth-service/data/users.json")
-	seedCollection(ctx, productDB, "products",  "product-service/data/products.json")
+	seedCollection(ctx, authDB, "users", "auth-service/data/users.json")
+	seedCollection(ctx, productDB, "products", "product-service/data/products.json")
 	seedCollection(ctx, addressDB, "addresses", "address-service/data/addresses.json")
-	seedCollection(ctx, orderDB,   "orders",    "order-service/data/orders.json")
+	seedCollection(ctx, orderDB, "orders", "order-service/data/orders.json")
+
+	// Sabit Yönetici ve Müşteri Kullanıcılarını Sisteme Aşılama
+	createDefaultUsers(ctx, authDB)
 
 	// Her DB'nin kendi counters koleksiyonu
-	syncCounters(ctx, authDB,    []string{"users"})
+	syncCounters(ctx, authDB, []string{"users"})
 	syncCounters(ctx, productDB, []string{"products"})
 	syncCounters(ctx, addressDB, []string{"addresses"})
-	syncCounters(ctx, orderDB,   []string{"orders"})
+	syncCounters(ctx, orderDB, []string{"orders"})
 
 	fmt.Println("\n✓ Seed işlemi tamamlandı.")
 }
@@ -150,4 +154,60 @@ func toInt(v interface{}) int {
 		return int(n)
 	}
 	return 0
+}
+
+// Varsayılan yönetici ve müşteri hesaplarını oluşturur
+func createDefaultUsers(ctx context.Context, authDB *mongo.Database) {
+	coll := authDB.Collection("users")
+
+	// Şifreyi bcrypt ile güvenceye alın
+	hash, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	if err != nil {
+		fmt.Println("  ✗ Kullanıcı şifre hashleme hatası:", err)
+		return
+	}
+
+	adminUser := bson.M{
+		"_id":        1,
+		"email":      "admin@eticaret.com",
+		"password":   string(hash),
+		"first_name": "Admin",
+		"last_name":  "Yönetici",
+		"phone":      "5550000001",
+		"role":       "admin",
+		"is_active":  true,
+		"created_at": time.Now(),
+		"updated_at": time.Now(),
+	}
+
+	customerUser := bson.M{
+		"_id":        2,
+		"email":      "ahmet@example.com",
+		"password":   string(hash),
+		"first_name": "Ahmet",
+		"last_name":  "Müşteri",
+		"phone":      "5550000002",
+		"role":       "customer",
+		"is_active":  true,
+		"created_at": time.Now(),
+		"updated_at": time.Now(),
+	}
+
+	opt := options.Update().SetUpsert(true)
+
+	// Admin Ekle
+	_, err = coll.UpdateByID(ctx, 1, bson.M{"$set": adminUser}, opt)
+	if err != nil {
+		fmt.Println("  ✗ Admin hesabı veritabanına yazılamadı:", err)
+	} else {
+		fmt.Println("  ✓ Varsayılan Admin Hesabı [Email: admin@eticaret.com | Şifre: password123] başarıyla oluşturuldu!")
+	}
+
+	// Müşteri Ekle
+	_, err = coll.UpdateByID(ctx, 2, bson.M{"$set": customerUser}, opt)
+	if err != nil {
+		fmt.Println("  ✗ Müşteri hesabı veritabanına yazılamadı:", err)
+	} else {
+		fmt.Println("  ✓ Varsayılan Müşteri Hesabı [Email: ahmet@example.com | Şifre: password123] başarıyla oluşturuldu!")
+	}
 }
