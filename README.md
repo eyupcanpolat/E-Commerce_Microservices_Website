@@ -53,8 +53,6 @@ Güncel Teknolojiler ve mikroservis mimari kullanarak tam teşekküllü bir e-ti
 
 ### Amaç
 
-PHP monoliti, aşağıdaki hedeflerle Go dilinde mikroservis mimarisine dönüştürülmüştür:
-
 - Her iş birimi (Auth, Product, Order, Address) bağımsız servis olarak çalışır
 - Tüm dış trafik tek bir API Gateway (Dispatcher) üzerinden akar
 - JWT kimlik doğrulama yalnızca Gateway'de yapılır (merkezi yetkilendirme)
@@ -818,7 +816,6 @@ curl http://localhost:8080/health
 
 ### Başarılar
 
-- PHP monoliti 5 bağımsız Go mikroservisine dönüştürüldü
 - API Gateway TDD (Red-Green-Refactor) disipliniyle geliştirildi; 69 test tümü geçiyor
 - Ağ izolasyonu `X-Internal-Secret` mekanizmasıyla sağlandı; mikroservisler dış dünyaya tamamen kapalı
 - Her servis izole MongoDB veritabanı kullanıyor (eticaret_auth, eticaret_products, eticaret_addresses, eticaret_orders, eticaret_gateway)
@@ -826,7 +823,6 @@ curl http://localhost:8080/health
 - Token bucket rate limiter ile DDoS koruması eklendi
 - Grafana + Prometheus ile gerçek zamanlı izleme kuruldu
 - k6 ile 3 farklı yük testi senaryosu (smoke, load, stress) hazırlandı
-- PHP'deki SQL Injection, IDOR, SSRF, XSS açıkları giderildi
 - Richardson Maturity Model Seviye 2 standartlarına uyuldu
 
 ### Sınırlılıklar
@@ -849,25 +845,3 @@ curl http://localhost:8080/health
 
 ---
 
-## PHP'den Go Dönüşüm Özeti
-
-| PHP Bileşeni | Go Karşılığı |
-|---|---|
-| `AuthController` | `auth-service` |
-| `ProductController` | `product-service` |
-| `OrderController` | `order-service` |
-| `UserController` (adresler) | `address-service` |
-| `Session::isLoggedIn()` | JWT middleware (gateway) |
-| MySQL | MongoDB (izole DB'ler) |
-| PHP Router | API Gateway (reverse proxy) |
-| `password_hash()` | `bcrypt.GenerateFromPassword()` |
-| Tek sunucu | Docker Compose — 8 konteyner |
-
-### Düzeltilen Güvenlik Açıkları
-
-| Açık | PHP | Go |
-|------|-----|-----|
-| SQL Injection | `findByEmailVulnerable()` | Tip güvenli MongoDB sorguları |
-| IDOR | Adres sahipliği kontrolü yok | Her istekte `X-User-ID` doğrulama |
-| SSRF | `file_get_contents($avatarUrl)` | Endpoint kaldırıldı |
-| XSS | Arama sorgusu kaçışsız HTML | JSON API, HTML render etmiyor |
