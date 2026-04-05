@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Proje Adı** | E-Ticaret Mikroservis Backend (PHP → Go Dönüşümü) |
+| **Proje Adı** | E-Ticaret Mikroservis Backend |
 | **Ders** | Yazılım Geliştirme Laboratuvarı-II |
 | **Ekip** | 221307011 — Eyüp Canpolat · 231307120 — Yağız Bilgili |
 | **Tarih** | 5 Nisan 2026 |
@@ -33,7 +33,7 @@
 
 ### Problem
 
-Mevcut PHP tabanlı e-ticaret uygulaması monolitik bir mimariye sahiptir. Tüm iş mantığı tek bir sunucu üzerinde çalışmakta, veritabanı olarak MySQL kullanılmakta ve çeşitli güvenlik açıkları (SQL Injection, IDOR, SSRF, XSS) barındırmaktadır. Yoğun trafik altında ölçeklenme mümkün değildir; herhangi bir bileşenin çökmesi tüm sistemi etkiler.
+Güncel Teknolojiler ve mikroservis mimari kullanarak tam teşekküllü bir e-ticaret uygulamasının geliştirilmesi.
 
 ### Amaç
 
