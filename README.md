@@ -617,16 +617,33 @@ Sistem, Docker Compose ortamında k6 ile 3 farklı senaryoda test edilmiştir.
 | 200 VU | ~34ms | ~89ms | %0 |
 | 500 VU | ~95ms | ~230ms | <%1 |
 
+### Grafana k6 Dashboard — Gerçek Zamanlı İzleme
+
+Tüm testler Prometheus Remote Write ile Grafana'ya aktarılmış ve gerçek zamanlı olarak izlenmiştir.
+
+**Panel 1 — VU, RPS, Hata Oranı, Yanıt Süreleri:**
+
+![k6 Dashboard 1](docs/screenshots/Ekran%20görüntüsü%202026-04-05%20230229.png)
+
+**Panel 2 — Servis Bazlı p(95), Toplam İstek, Rate Limit, İterasyon:**
+
+![k6 Dashboard 2](docs/screenshots/Ekran%20görüntüsü%202026-04-05%20230240.png)
+
 ### Test Çalıştırma
 
 ```bash
 # Docker ile (önerilen — sistem ayakta olmalı)
-docker compose --profile loadtest run k6 run /scripts/k6_smoke_test.js
-docker compose --profile loadtest run k6 run /scripts/k6_load_test.js
-docker compose --profile loadtest run k6 run /scripts/k6_stress_test.js
+docker compose --profile loadtest run --rm k6 run \
+  --out experimental-prometheus-rw \
+  /scripts/k6_smoke_test.js
 
-# Yerel k6 ile
-k6 run load-tests/k6_smoke_test.js
+docker compose --profile loadtest run --rm k6 run \
+  --out experimental-prometheus-rw \
+  /scripts/k6_load_test.js
+
+docker compose --profile loadtest run --rm k6 run \
+  --out experimental-prometheus-rw \
+  /scripts/k6_stress_test.js
 ```
 
 ---
